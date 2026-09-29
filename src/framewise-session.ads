@@ -7,7 +7,8 @@
 --  the history; load replays a file. The .fw document IS the history.
 --
 --  No heap needed: a Sequence is bounded and lives inside the Session.
---  Export spawns ffmpeg with the plan; plan only prints it.
+--  Export spawns ffmpeg with the plan; plan only prints it. Proxy spawns
+--  ffmpeg once per source to make the intra-only file the editor reads.
 
 with Framewise.Commands; use Framewise.Commands;
 with Framewise.Plan;

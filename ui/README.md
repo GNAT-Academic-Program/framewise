@@ -26,7 +26,8 @@ first one.
   track view is a custom-drawn widget (rectangles with labels, one
   row per track, x = time * zoom).
 - Preview: an image widget fed by `Framewise.Decode.Frame_At` at the
-  playhead time (milestone 3). Until then, draw the clip name.
+  playhead time, from the proxy (milestone 3). Until then, draw the
+  clip name. An Import button runs `import` then `proxy`.
 - Thumbnails: `Frame_At` at each clip's `Src_In`, cached by
   (source, time).
 

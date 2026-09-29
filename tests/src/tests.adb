@@ -155,6 +155,7 @@ procedure Tests is
       Round_Trip ("split c1 4 c2");
       Round_Trip ("delete c2");
       Round_Trip ("settings 1280 720 30");
+      Round_Trip ("proxy a");
       Parse ("import a a.mp4", C, Ok, Err, Last);
       Check ("import needs length", not Ok);
       Parse ("place c1 v1 a 2 8.5", C, Ok, Err, Last);
@@ -191,6 +192,8 @@ procedure Tests is
       Execute (S, "list", R);
       Check ("list", R.Ok and Has (R, "v1()"));
       Check ("history line", History_Line (S, 1) = "import a a.mp4 30 both");
+      Execute (S, "proxy zz", R);
+      Check ("proxy unknown source", not R.Ok and History_Length (S) = 2);
    end Test_Session;
 
 begin

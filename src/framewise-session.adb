@@ -12,6 +12,8 @@ package body Framewise.Session is
    procedure Do_List (S : Session; R : out Response);
    procedure Do_Info (S : Session; N : Name; R : out Response);
    procedure Do_Plan (S : Session; Output : String; R : out Response; Run : Boolean);
+   procedure Do_Proxy (S : Session; N : Name; R : out Response);
+   procedure Run_Shell (Cmd : String; Status : out Integer; Found : out Boolean);
    procedure Do_Save (S : Session; File : String; R : out Response);
    procedure Do_Load (S : in out Session; File : String; R : out Response);
 
@@ -175,28 +177,68 @@ package body Framewise.Session is
          Set (R, True, "ok " & Text (1 .. Last));
          return;
       end if;
-      --  Run through the shell so the quoted filter graph survives.
       declare
-         use GNAT.OS_Lib;
-         Args : Argument_List_Access :=
-           new Argument_List'(new String'("-c"), new String'(Text (1 .. Last)));
-         Sh   : String_Access := Locate_Exec_On_Path ("sh");
          Status : Integer;
+         Found  : Boolean;
       begin
-         if Sh = null then
+         Run_Shell (Text (1 .. Last), Status, Found);
+         if not Found then
             Set (R, False, "err no shell to run ffmpeg; use 'plan' and run it yourself");
-            return;
-         end if;
-         Status := Spawn (Sh.all, Args.all);
-         Free (Args);
-         Free (Sh);
-         if Status = 0 then
+         elsif Status = 0 then
             Set (R, True, "ok exported " & Output);
          else
             Set (R, False, "err ffmpeg exit" & Status'Image & "; run 'plan' to see the command");
          end if;
       end;
    end Do_Plan;
+
+   --  Run one line through sh -c so quoting survives. Found = False when
+   --  there is no shell on the PATH.
+   procedure Run_Shell (Cmd : String; Status : out Integer; Found : out Boolean) is
+      use GNAT.OS_Lib;
+      Args : Argument_List_Access :=
+        new Argument_List'(new String'("-c"), new String'(Cmd));
+      Sh   : String_Access := Locate_Exec_On_Path ("sh");
+   begin
+      Status := -1;
+      Found := Sh /= null;
+      if Found then
+         Status := Spawn (Sh.all, Args.all);
+         Free (Sh);
+      end if;
+      Free (Args);
+   end Run_Shell;
+
+   --  The proxy is the file the editor actually reads: intra-only video
+   --  (every frame a keyframe) and PCM audio, both decodable in pure Ada
+   --  by Framewise.Decode. The original is only touched by export.
+   function Proxy_Command (Source : String) return String is
+     ("ffmpeg -y -hide_banner -loglevel error -i " & Source
+      & " -vf scale=-2:540 -c:v mjpeg -q:v 3 -pix_fmt yuvj420p"
+      & " -c:a pcm_s16le -ar 48000 " & Source & ".proxy.mov");
+
+   procedure Do_Proxy (S : Session; N : Name; R : out Response) is
+      Sr     : constant Source_Id := Find_Source (S.Seq, N);
+      Status : Integer;
+      Found  : Boolean;
+   begin
+      if Sr = No_Source then
+         Set (R, False, "err no source named " & Image (N));
+         return;
+      end if;
+      declare
+         File : constant String := Image (S.Seq.Sources (Sr).File);
+      begin
+         Run_Shell (Proxy_Command (File), Status, Found);
+         if not Found then
+            Set (R, False, "err no shell to run ffmpeg: " & Proxy_Command (File));
+         elsif Status = 0 then
+            Set (R, True, "ok wrote " & File & ".proxy.mov");
+         else
+            Set (R, False, "err ffmpeg exit" & Status'Image & ": " & Proxy_Command (File));
+         end if;
+      end;
+   end Do_Proxy;
 
    procedure Do_Save (S : Session; File : String; R : out Response) is
       use Ada.Text_IO;
@@ -286,6 +328,7 @@ package body Framewise.Session is
          when Info   => Do_Info (S, C.Target, R);
          when Commands.Plan => Do_Plan (S, Image (C.Out_File), R, Run => False);
          when Export => Do_Plan (S, Image (C.Out_File), R, Run => True);
+         when Proxy  => Do_Proxy (S, C.Target, R);
          when Save   => Do_Save (S, Image (C.Out_File), R);
          when Load   => Do_Load (S, Image (C.Out_File), R);
          when Comment | Empty => Set (R, True, "ok");

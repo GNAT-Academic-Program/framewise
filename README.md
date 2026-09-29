@@ -67,8 +67,10 @@ src/framewise-timeline.ads  Source, Clip, Track, Sequence, Well_Formed,
                             Place/Move/Trim/Split/Delete                   SPARK, proof target
 src/framewise-commands.ads  the grammar: Parse <-> Image, round-trips      SPARK
 src/framewise-plan.ads      Sequence -> ffmpeg filter_complex command      done
-src/framewise-decode.ads    Probe, Frame_At: the FFmpeg binding            PLACEHOLDER: the project
-src/framewise-session.ads   history, undo, save/load, plan/export, Execute done
+src/framewise-isobmff.ads   MP4/MOV demuxer: boxes, sample tables          PLACEHOLDER, SPARK
+src/framewise-jpeg.ads      baseline JPEG decoder                          PLACEHOLDER, SPARK
+src/framewise-decode.ads    Probe, Frame_At on the proxy, pure Ada         PLACEHOLDER: the project
+src/framewise-session.ads   history, undo, save/load, plan/export/proxy    done
 cli/                        REPL, file runner, -c one-liners; exit = failures
 ui/README.md                the contract for the GUI (adi2)                contract only
 examples/cut.fw             two takes cut with a gap over one music track
@@ -78,8 +80,31 @@ tests/                      60 checks: time, timeline invariant, grammar round t
 Everything runs, including a real export: generate synthetic sources
 with ffmpeg (see `.github/workflows/ci.yml`), `load cut.fw`,
 `export out.mp4`, and you get a 22-second file. The hole in the
-middle is exactly the size of the capstone: `Framewise.Decode`, and
-the GUI it makes possible.
+middle is exactly the size of the capstone: reading the proxy in
+pure Ada (`ISOBMFF`, `JPEG`, `Decode`), and the GUI it makes possible.
+
+## Why we do not decode MP4, and why we do not need to
+
+No editor edits H.264. Every frame depends on earlier frames, so
+seeking is a decode from the last keyframe and cutting mid-GOP means
+re-encoding. Resolve, Premiere and Final Cut transcode on ingest to
+an intra-only intermediate (ProRes, DNxHR, or proxies), edit that,
+and go back to the originals only at export. framewise does the same
+with the simplest intra-only codec that exists:
+
+```
+proxy take1        -> ffmpeg writes take1.mp4.proxy.mov: Motion JPEG 540p + PCM
+```
+
+Motion JPEG is one baseline JPEG per frame. A baseline JPEG decoder
+is ~2000 lines from a 30-year-old spec; the MOV container is a box
+tree with five sample tables. Both are parsers over untrusted bytes
+with bounded state, which is exactly what SPARK proves. So the whole
+editing path (scrub, thumbnails, motion analysis, waveforms) is Ada
+with no C in the process, and the two things we leave to ffmpeg
+(making the proxy, encoding the delivery H.264) are the two things
+that would take years and give nothing back. Writing an H.264 or AAC
+codec is out of scope, and so is binding libavcodec.
 
 Read `ARCHITECTURE.md` before touching anything.
 
@@ -88,11 +113,14 @@ Read `ARCHITECTURE.md` before touching anything.
 1. **Prove the timeline.** `gnatprove --mode=all` on
    `Framewise.Timeline`. The seed proves flow; the contracts are
    written; loop invariants are yours. T1-T4 in the spec header.
-2. **Probe.** Bind `avformat_open_input` and friends so `import NAME
-   FILE` needs no length. First C boundary, smallest possible.
-3. **Frame_At.** Decode one frame at time T into RGBA. With this, a
-   scrub bar and thumbnails are possible, and the GUI becomes worth
-   building.
+2. **The container.** `Framewise.ISOBMFF.Parse` on the proxy: walk
+   the boxes, read `stts/stsc/stsz/stco`, resolve every sample to an
+   (offset, size, time) inside `mdat`. `Probe` works; `import` drops
+   its LENGTH argument. Proven: no sample points outside the file.
+3. **The codec.** `Framewise.JPEG.Decode`: Huffman, dequantize, IDCT,
+   YCbCr to RGB. `Frame_At` works; a scrub bar and thumbnails are
+   possible, and the GUI becomes worth building. Proven: no crash on
+   any input. This is the SPARK showpiece.
 4. **The GUI.** See `ui/README.md`. adi2 window, a track view drawn
    from `Sequence_Of`, a preview drawn from `Frame_At`, a command bar
    at the bottom that shows every line the mouse generates.
@@ -100,13 +128,15 @@ Read `ARCHITECTURE.md` before touching anything.
    transitions, per-clip speed, audio gain. Each is a new command,
    a new `Plan` case, and a test that the ffmpeg line is what you
    expect. Ripple delete on the timeline side.
-6. **Native export** (stretch). Replace the ffmpeg spawn with your
-   own decode/encode loop over the plan. Only if 1-4 land early.
+6. **Native intermediate export** (stretch). Decode proxies, write
+   your own MJPEG+PCM `.mov` (the muxer is the demuxer backwards),
+   and let ffmpeg only do the final H.264 encode. Only if 1-4 land
+   early.
 
 ## Build
 
 Three [Alire](https://alire.ada.dev) crates; cli and tests pin the
-library by path. `ffmpeg` on the PATH for `export`; nothing else.
+library by path. `ffmpeg` on the PATH for `proxy` and `export`; nothing else.
 
 ```
 alr build
@@ -136,6 +166,8 @@ server exposing `execute(line)` and `history()` is an afternoon.
 
 - `src/` below `Framewise.Session` has no I/O and no allocation
   (`Framewise.Decode` is the one exception, and it only reads).
+- `Framewise.ISOBMFF` and `Framewise.JPEG` are pure functions over
+  byte arrays. They never see a file handle. No C anywhere in `src/`.
 - Every timeline operation: well-formed in, well-formed out, or
   `Ok = False` with the sequence untouched. Never an exception.
 - Every new editing command gets a `Parse` case, an `Image` case, a

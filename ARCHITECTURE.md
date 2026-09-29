@@ -9,8 +9,9 @@ ui/  (adi2)              cli/  (stdin)         an agent (pipe)     front ends: l
                  |             history, undo, save/load, plan/export (spawns ffmpeg)
            Framewise.Commands  Command <-> text, Parse and Image are inverses      SPARK
                  |
-   Framewise.Plan          Framewise.Decode
-   Sequence -> ffmpeg      Probe, Frame_At (the C binding, PLACEHOLDER)
+   Framewise.Plan          Framewise.Decode          Probe, Frame_At on the proxy (PLACEHOLDER)
+   Sequence -> ffmpeg           |          \
+                 |     Framewise.ISOBMFF   Framewise.JPEG      demuxer, codec: pure byte-array functions, SPARK
                  |
            Framewise.Timeline  Source, Clip, Track, Sequence, Well_Formed          SPARK, proof target
                  |
@@ -19,7 +20,9 @@ ui/  (adi2)              cli/  (stdin)         an agent (pipe)     front ends: l
 
 Dependencies point down only. Nothing above `Framewise.Session` names a
 kernel package. Nothing at or below `Framewise.Plan` allocates or does
-I/O; `Decode` reads files and is the only package that touches C.
+I/O; `Decode` reads files and hands byte arrays to `ISOBMFF` and
+`JPEG`, which are pure. There is no C in `src/`. ffmpeg is a process
+the session spawns for two jobs: `proxy` and `export`.
 
 ## The edge, and why it holds
 
@@ -92,14 +95,33 @@ generation over a well-formed sequence, and its tests compare
 strings. Adding a feature to the plan means adding a filter to the
 graph and a test for the resulting line.
 
-### Decode: the project
+### Media: the project
 
-The FFmpeg binding. In the seed every subprogram reports `Ok = False`.
-The path is in the spec header: `Probe`, then `Frame_At`, then
-optionally a native export loop. Three libav APIs, roughly 300 lines
-of Ada, `pragma Import (C, ...)` and a handful of records mirrored
-from the C headers. Keep it in this one package; nothing else may
-name libav.
+Three packages, all placeholders in the seed, each with its algorithm
+in the spec header.
+
+`Framewise.ISOBMFF`: the MP4/MOV box tree and the five sample tables
+(`stts`, `stsc`, `stsz`, `stco`/`co64`), resolved into a bounded array
+of (offset, size, time) per track. `Well_Formed` says every sample
+lies inside `mdat`; it is the postcondition of `Parse` and what makes
+every later read safe. `Sample_At` is a binary search, and because the
+proxy is intra-only, the sample it finds is the frame.
+
+`Framewise.JPEG`: baseline sequential JPEG. Huffman decode, dequantize,
+inverse DCT, chroma upsample, YCbCr to RGBA. Bit reader and Huffman
+lookup bounded on any input; IDCT accumulators bounded by construction.
+
+`Framewise.Decode`: the only one that opens a file. Reads the proxy,
+parses it once, and serves `Frame_At (T)` by one seek and one JPEG
+decode. Caches the last frame.
+
+Why a proxy and not the original: H.264 frames depend on earlier
+frames; an editor that seeks by decoding from keyframes is an editor
+that stutters, and a decoder for it is out of scope by two orders of
+magnitude. Every NLE transcodes on ingest. Motion JPEG is the
+intra-only format that costs the least to read and that ffmpeg and
+every player already write. The original is read exactly once, by
+ffmpeg, at export.
 
 ## Session
 
@@ -126,6 +148,8 @@ the tests is the contract: `Parse (Image (C)) = C`.
   architecture.
 - Ripple edits. A milestone on the timeline side, with T2 still the
   postcondition.
-- Any pixel work. ffmpeg renders; `Decode` is for the preview.
+- Any encoder. ffmpeg makes the proxy and encodes the delivery file.
+  `Decode` is for the preview and for analysis, never for export.
+- Any inter-frame codec. If a source is not MJPEG+PCM, it gets a proxy.
 - A GUI in the seed. `ui/README.md` is the contract; adi2 is the tool;
   milestone 4.

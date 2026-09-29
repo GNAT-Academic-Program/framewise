@@ -1,5 +1,5 @@
 name = "framewise"
-description = "Non-linear video editing with a proven timeline kernel, driven by a text command language"
+description = "Non-linear video editing with a proven timeline kernel."
 version = "0.1.0-dev"
 authors = ["Olivier Henley"]
 maintainers = ["Olivier Henley <henley@adacore.com>"]

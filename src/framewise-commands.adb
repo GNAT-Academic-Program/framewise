@@ -314,6 +314,11 @@ package body Framewise.Commands with SPARK_Mode => Off is
             if G then
                C := (K => Export, Out_File => Pth);
             end if;
+         elsif Verb = "proxy" then
+            Need (2, 2); Get_Name (2, 1);
+            if G then
+               C := (K => Proxy, Target => Names (1));
+            end if;
          elsif Verb = "undo" then
             Need (1, 1);
             C := (K => Undo);
@@ -381,6 +386,8 @@ package body Framewise.Commands with SPARK_Mode => Off is
             return "plan " & Image (C.Out_File);
          when Export =>
             return "export " & Image (C.Out_File);
+         when Proxy =>
+            return "proxy " & Image (C.Target);
          when Undo =>
             return "undo";
          when Save =>

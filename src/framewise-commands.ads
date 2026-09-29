@@ -15,6 +15,7 @@
 --    info     [CLIP|TRACK|SOURCE]                    query
 --    plan     OUT.mp4                                print the ffmpeg command
 --    export   OUT.mp4                                run it
+--    proxy    SOURCE                                 make SOURCE's proxy (ffmpeg)
 --    undo
 --    save     FILE.fw
 --    load     FILE.fw
@@ -22,12 +23,16 @@
 --
 --  import LENGTH is required in the seed because Decode.Probe is a
 --  placeholder. When probe lands, LENGTH becomes optional.
+--
+--  proxy writes FILE.proxy.mov next to the source: Motion JPEG at 540p
+--  plus 16-bit PCM. That is the file Framewise.Decode reads. The
+--  original is only ever touched by export.
 
 package Framewise.Commands with SPARK_Mode is
 
    type Kind is
      (Import, Track, Place, Move, Trim, Split, Delete, Settings,
-      List, Info, Plan, Export, Undo, Save, Load, Comment, Empty);
+      List, Info, Plan, Export, Proxy, Undo, Save, Load, Comment, Empty);
 
    subtype Modeling is Kind range Import .. Settings;
 
@@ -57,7 +62,7 @@ package Framewise.Commands with SPARK_Mode is
             Sp_Name  : Name;
             Cut      : Time := 0;
             Right    : Name;
-         when Delete | Info =>
+         when Delete | Info | Proxy =>
             Target   : Name;
          when Settings =>
             Width, Height, FPS : Positive := 1;
