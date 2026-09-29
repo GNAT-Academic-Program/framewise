@@ -1,0 +1,11 @@
+# Two takes, cut together with a gap, over one music track.
+settings 1280 720 30
+import take1 take1.mp4 30 video
+import take2 take2.mp4 20 video
+import music music.wav 60 audio
+track v1 video
+track a1 audio
+place c1 v1 take1 2 8.5 0
+place c2 v1 take2 0 5 8.5
+place c3 v1 take1 12 20 14
+place m1 a1 music 0 22 0

@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: alire-project/setup-alire@v4
+      - name: Build library
+        run: alr -n build
+      - name: Tests
+        run: |
+          cd tests
+          alr -n build
+          ./bin/tests
+      - name: CLI runs the example and round-trips the document
+        run: |
+          cd cli
+          alr -n build
+          printf 'load ../examples/cut.fw\nlist\ninfo c2\nplan /tmp/out.mp4\nsave /tmp/rt.fw\n' \
+            | ./bin/framewise_cli
+          ./bin/framewise_cli -c "load /tmp/rt.fw" -c "info m1"
+      - name: Export with real ffmpeg on synthetic sources
+        run: |
+          sudo apt-get install -y ffmpeg
+          cd examples
+          ffmpeg -loglevel error -y -f lavfi -i testsrc=size=1280x720:rate=30 -t 30 take1.mp4
+          ffmpeg -loglevel error -y -f lavfi -i smptebars=size=1280x720:rate=30 -t 20 take2.mp4
+          ffmpeg -loglevel error -y -f lavfi -i sine=frequency=440 -t 60 music.wav
+          ../cli/bin/framewise_cli -c "load cut.fw" -c "export out.mp4"
+          ffprobe -v error -show_entries format=duration -of csv=p=0 out.mp4 | grep -q '^22\.'
+      - name: ui/ never reaches below Framewise.Session
+        run: |
+          ! grep -rEi 'with +Framewise\.(Timeline|Plan|Decode|Commands)' ui/ --include='*.ad?' 
+      - name: SPARK flow analysis
+        run: |
+          alr -n with gnatprove
+          alr -n exec -- gnatprove -P framewise.gpr --mode=flow --checks-as-errors=on

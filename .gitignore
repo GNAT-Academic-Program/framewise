@@ -1,0 +1,10 @@
+obj/
+lib/
+bin/
+alire/
+config/
+*.o
+*.ali
+gnatprove/
+*.mp4
+*.wav

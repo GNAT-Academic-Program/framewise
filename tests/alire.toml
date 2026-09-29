@@ -1,0 +1,16 @@
+name = "framewise_tests"
+description = "framewise unit tests"
+executables = ["tests"]
+version = "0.1.0-dev"
+authors = ["Olivier Henley"]
+maintainers = ["Olivier Henley <henley@adacore.com>"]
+maintainers-logins = ["ohenley"]
+licenses = "Apache-2.0"
+
+project-files = ["tests.gpr"]
+
+[[depends-on]]
+framewise = "*"
+
+[[pins]]
+framewise = { path = ".." }

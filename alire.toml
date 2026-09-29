@@ -1,0 +1,11 @@
+name = "framewise"
+description = "Non-linear video editing with a proven timeline kernel, driven by a text command language"
+version = "0.1.0-dev"
+authors = ["Olivier Henley"]
+maintainers = ["Olivier Henley <henley@adacore.com>"]
+maintainers-logins = ["ohenley"]
+licenses = "Apache-2.0"
+website = "https://github.com/GNAT-Academic-Program/framewise"
+tags = ["video", "nle", "ffmpeg", "spark", "gap"]
+
+project-files = ["framewise.gpr"]
