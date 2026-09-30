@@ -1,3 +1,5 @@
+with "bedrock";
+
 library project Framewise is
    for Library_Name use "framewise";
    for Library_Version use "0.1.0";

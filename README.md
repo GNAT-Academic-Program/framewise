@@ -106,7 +106,8 @@ with no C in the process, and the two things we leave to ffmpeg
 that would take years and give nothing back. Writing an H.264 or AAC
 codec is out of scope, and so is binding libavcodec.
 
-Read `ARCHITECTURE.md` before touching anything.
+Read `REQUIREMENTS.md` (plain language, with a glossary) and then
+`ARCHITECTURE.md` before touching anything.
 
 ## Milestones
 

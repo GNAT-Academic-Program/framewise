@@ -10,6 +10,7 @@
 --  Export spawns ffmpeg with the plan; plan only prints it. Proxy spawns
 --  ffmpeg once per source to make the intra-only file the editor reads.
 
+with Bedrock.Responses;
 with Framewise.Commands; use Framewise.Commands;
 with Framewise.Plan;
 with Framewise.Timeline;
@@ -22,13 +23,11 @@ package Framewise.Session is
 
    Max_Response : constant := 16_384;
 
-   type Response is record
-      Ok     : Boolean := True;
-      Length : Natural range 0 .. Max_Response := 0;
-      Text   : String (1 .. Max_Response) := [others => ' '];
-   end record;
-
-   function Image (R : Response) return String is (R.Text (1 .. R.Length));
+   --  The GAP line protocol's reply, from bedrock: "ok", "ok <info>",
+   --  or "err <reason>". Same type in forge and yarlib's console.
+   package Responses is new Bedrock.Responses (Max_Response);
+   subtype Response is Responses.Response;
+   function Image (R : Response) return String renames Responses.Image;
 
    procedure Execute (S : in out Session; Line : String; R : out Response);
 

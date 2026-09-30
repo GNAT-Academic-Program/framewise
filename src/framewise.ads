@@ -6,6 +6,8 @@
 --  MPEG's 90 kHz clock. Exact, comparable, provable; no float creeps
 --  into the timeline. Seconds appear only at the text boundary.
 
+with Bedrock.Names;
+
 package Framewise with SPARK_Mode, Pure is
 
    Timebase : constant := 90_000;
@@ -21,31 +23,20 @@ package Framewise with SPARK_Mode, Pure is
    --  Names: identifiers for sources, clips and tracks.
    ---------------------------------------------------------------------
 
-   Max_Name : constant := 32;
+   ---------------------------------------------------------------------
+   --  Names and paths: bedrock's bounded strings, so a name means the
+   --  same thing in every GAP tool.
+   ---------------------------------------------------------------------
 
-   type Name is record
-      Length : Natural range 0 .. Max_Name := 0;
-      Text   : String (1 .. Max_Name) := [others => ' '];
-   end record;
+   Max_Name : constant := Bedrock.Names.Max_Name;
+   subtype Name is Bedrock.Names.Name;
+   function To_Name (S : String) return Name renames Bedrock.Names.To_Name;
+   function Image (N : Name) return String renames Bedrock.Names.Image;
+   function "=" (A, B : Name) return Boolean renames Bedrock.Names."=";
 
-   function To_Name (S : String) return Name
-     with Pre => S'Length <= Max_Name;
-
-   function Image (N : Name) return String is (N.Text (1 .. N.Length));
-
-   function "=" (A, B : Name) return Boolean is
-     (A.Length = B.Length and then A.Text (1 .. A.Length) = B.Text (1 .. B.Length));
-
-   Max_Path : constant := 256;
-
-   type Path is record
-      Length : Natural range 0 .. Max_Path := 0;
-      Text   : String (1 .. Max_Path) := [others => ' '];
-   end record;
-
-   function To_Path (S : String) return Path
-     with Pre => S'Length <= Max_Path;
-
-   function Image (P : Path) return String is (P.Text (1 .. P.Length));
+   Max_Path : constant := Bedrock.Names.Max_Path;
+   subtype Path is Bedrock.Names.Path;
+   function To_Path (S : String) return Path renames Bedrock.Names.To_Path;
+   function Image (P : Path) return String renames Bedrock.Names.Image;
 
 end Framewise;

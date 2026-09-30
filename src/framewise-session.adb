@@ -5,8 +5,8 @@ package body Framewise.Session is
 
    use Framewise.Timeline;
 
-   procedure Set (R : out Response; Ok : Boolean; Msg : String);
-   procedure Append (R : in out Response; Msg : String);
+   procedure Set (R : out Response; Ok : Boolean; Msg : String) renames Responses.Set;
+   procedure Append (R : in out Response; Msg : String) renames Responses.Append;
    procedure Apply (S : in out Session; C : Command; R : out Response);
    procedure Replay (S : in out Session);
    procedure Do_List (S : Session; R : out Response);
@@ -21,22 +21,6 @@ package body Framewise.Session is
      (case K is when Commands.Video => Timeline.Video,
                 when Commands.Audio => Timeline.Audio,
                 when Commands.Both  => Timeline.Both);
-
-   procedure Set (R : out Response; Ok : Boolean; Msg : String) is
-      L : constant Natural := Natural'Min (Msg'Length, Max_Response);
-   begin
-      R.Ok := Ok;
-      R.Length := L;
-      R.Text := [others => ' '];
-      R.Text (1 .. L) := Msg (Msg'First .. Msg'First + L - 1);
-   end Set;
-
-   procedure Append (R : in out Response; Msg : String) is
-      L : constant Natural := Natural'Min (Msg'Length, Max_Response - R.Length);
-   begin
-      R.Text (R.Length + 1 .. R.Length + L) := Msg (Msg'First .. Msg'First + L - 1);
-      R.Length := R.Length + L;
-   end Append;
 
    -----------
    -- Apply --

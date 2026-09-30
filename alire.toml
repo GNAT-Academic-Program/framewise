@@ -1,5 +1,5 @@
 name = "framewise"
-description = "Non-linear video editing with a proven timeline kernel."
+description = "Non-linear video editing with a proven timeline kernel"
 version = "0.1.0-dev"
 authors = ["Olivier Henley"]
 maintainers = ["Olivier Henley <henley@adacore.com>"]
@@ -9,3 +9,9 @@ website = "https://github.com/GNAT-Academic-Program/framewise"
 tags = ["video", "nle", "ffmpeg", "spark", "gap"]
 
 project-files = ["framewise.gpr"]
+
+[[depends-on]]
+bedrock = "*"
+
+[[pins]]
+bedrock = { url = "https://github.com/GNAT-Academic-Program/bedrock.git" }
